@@ -30,7 +30,7 @@ for c in "${containers[@]}"; do
     if sysctl -w net.ipv4.tcp_congestion_control=bbr >/dev/null 2>&1; then
       sysctl net.ipv4.tcp_congestion_control
     else
-      echo "WARN: could not set net.ipv4.tcp_congestion_control inside container"
+      echo "WARNING: could not set net.ipv4.tcp_congestion_control inside container"
       sysctl net.ipv4.tcp_available_congestion_control || true
     fi
   '

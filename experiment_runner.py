@@ -59,8 +59,14 @@ def telemetry_loop(container, csv_path, stop_event):
         writer.writerow(["timestamp_utc", "container", "cwnd", "rtt_ms", "pacing_rate", "raw"])
         while not stop_event.is_set():
             ts = dt.datetime.now(dt.timezone.utc).isoformat()
-            out = compose_exec(container, "ss -ti dst receiver", check=False).stdout
+            result = compose_exec(container, "ss -ti dst receiver", check=False)
+            out = result.stdout
             cwnd, rtt, pacing = parse_metrics(out)
+            if result.returncode != 0:
+                err = " ".join((result.stderr or "").split())
+                print(f"WARNING: telemetry command failed in {container}: {err}")
+            elif out.strip() and not (cwnd or rtt or pacing):
+                print(f"WARNING: telemetry parse mismatch in {container}; raw ss output captured in CSV.")
             writer.writerow([ts, container, cwnd, rtt, pacing, " ".join(out.split())])
             f.flush()
             time.sleep(1)
@@ -162,7 +168,7 @@ def main():
     parser.add_argument("--down", action="store_true", help="docker compose down after tests")
     args = parser.parse_args()
 
-    run_id = dt.datetime.now(dt.timezone.utc).strftime("run_%Y%m%dT%H%M%SZ")
+    run_id = dt.datetime.now(dt.timezone.utc).strftime("run_%Y%m%dT%H-%M-%SZ")
     base_dir = Path(args.output_root) / run_id
     base_dir.mkdir(parents=True, exist_ok=True)
 
