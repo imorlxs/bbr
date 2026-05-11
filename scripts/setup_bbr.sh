@@ -10,8 +10,12 @@ fi
 
 echo "[1/3] Loading tcp_bbr on host"
 if command -v sudo >/dev/null 2>&1; then
-  sudo modprobe tcp_bbr || modprobe tcp_bbr
+  if ! sudo modprobe tcp_bbr; then
+    echo "WARNING: sudo modprobe failed; retrying without sudo"
+    modprobe tcp_bbr
+  fi
 else
+  echo "WARNING: sudo not found; attempting modprobe directly"
   modprobe tcp_bbr
 fi
 

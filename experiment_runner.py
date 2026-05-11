@@ -54,9 +54,10 @@ def parse_metrics(text):
 
 
 def telemetry_loop(container, csv_path, stop_event):
+    warned_parse_mismatch = False
     with csv_path.open("w", newline="") as f:
         writer = csv.writer(f)
-        writer.writerow(["timestamp_utc", "container", "cwnd", "rtt_ms", "pacing_rate", "raw"])
+        writer.writerow(["timestamp_iso", "container", "cwnd", "rtt_ms", "pacing_rate", "raw"])
         while not stop_event.is_set():
             ts = dt.datetime.now(dt.timezone.utc).isoformat()
             result = compose_exec(container, "ss -ti dst receiver", check=False)
@@ -65,8 +66,9 @@ def telemetry_loop(container, csv_path, stop_event):
             if result.returncode != 0:
                 err = " ".join((result.stderr or "").split())
                 print(f"WARNING: telemetry command failed in {container}: {err}")
-            elif out.strip() and not (cwnd or rtt or pacing):
+            elif out.strip() and not (cwnd or rtt or pacing) and not warned_parse_mismatch:
                 print(f"WARNING: telemetry parse mismatch in {container}; raw ss output captured in CSV.")
+                warned_parse_mismatch = True
             writer.writerow([ts, container, cwnd, rtt, pacing, " ".join(out.split())])
             f.flush()
             time.sleep(1)
