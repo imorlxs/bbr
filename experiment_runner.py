@@ -95,48 +95,56 @@ def run_single_test(base_dir, profile, algorithm, duration, container="sender"):
     set_algorithm(container, algorithm)
 
     stop_event = threading.Event()
-    t = threading.Thread(
+    telemetry_thread = threading.Thread(
         target=telemetry_loop,
         args=(container, test_dir / "telemetry.csv", stop_event),
         daemon=True,
     )
-    t.start()
+    telemetry_thread.start()
 
     try:
         result = run_iperf(container, algorithm, duration)
         save_json(test_dir / "iperf3.json", result.stdout)
     finally:
         stop_event.set()
-        t.join(timeout=3)
+        telemetry_thread.join(timeout=3)
         clear_tc(container)
 
 
-def run_fairness_test(base_dir, duration, profile="wired", a1="bbr", a2="cubic"):
-    print(f"Running fairness test: sender({a1}) vs sender2({a2}) with {profile}")
-    test_dir = base_dir / f"fairness_{a1}_vs_{a2}_{profile}"
+def run_fairness_test(base_dir, duration, profile="wired", algorithm1="bbr", algorithm2="cubic"):
+    print(f"Running fairness test: sender({algorithm1}) vs sender2({algorithm2}) with {profile}")
+    test_dir = base_dir / f"fairness_{algorithm1}_vs_{algorithm2}_{profile}"
     test_dir.mkdir(parents=True, exist_ok=True)
 
     for c in ("sender", "sender2"):
         apply_profile(c, profile)
 
-    set_algorithm("sender", a1)
-    set_algorithm("sender2", a2)
+    set_algorithm("sender", algorithm1)
+    set_algorithm("sender2", algorithm2)
 
     stop1 = threading.Event()
     stop2 = threading.Event()
-    t1 = threading.Thread(target=telemetry_loop, args=("sender", test_dir / "sender_telemetry.csv", stop1), daemon=True)
-    t2 = threading.Thread(target=telemetry_loop, args=("sender2", test_dir / "sender2_telemetry.csv", stop2), daemon=True)
-    t1.start()
-    t2.start()
+    sender_telemetry_thread = threading.Thread(
+        target=telemetry_loop,
+        args=("sender", test_dir / "sender_telemetry.csv", stop1),
+        daemon=True,
+    )
+    sender2_telemetry_thread = threading.Thread(
+        target=telemetry_loop,
+        args=("sender2", test_dir / "sender2_telemetry.csv", stop2),
+        daemon=True,
+    )
+    sender_telemetry_thread.start()
+    sender2_telemetry_thread.start()
 
     p1 = subprocess.Popen(
-        ["docker", "compose", "exec", "-T", "sender", "bash", "-lc", f"iperf3 -c receiver -t {duration} -i 1 -J -C {a1}"],
+        ["docker", "compose", "exec", "-T", "sender", "bash", "-lc", f"iperf3 -c receiver -t {duration} -i 1 -J -C {algorithm1}"],
         text=True,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
     )
     p2 = subprocess.Popen(
-        ["docker", "compose", "exec", "-T", "sender2", "bash", "-lc", f"iperf3 -c receiver -t {duration} -i 1 -J -C {a2}"],
+        ["docker", "compose", "exec", "-T", "sender2", "bash", "-lc", f"iperf3 -c receiver -t {duration} -i 1 -J -C {algorithm2}"],
         text=True,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
@@ -150,8 +158,8 @@ def run_fairness_test(base_dir, duration, profile="wired", a1="bbr", a2="cubic")
     finally:
         stop1.set()
         stop2.set()
-        t1.join(timeout=3)
-        t2.join(timeout=3)
+        sender_telemetry_thread.join(timeout=3)
+        sender2_telemetry_thread.join(timeout=3)
         clear_tc("sender")
         clear_tc("sender2")
 
@@ -180,7 +188,7 @@ def main():
         for algorithm in ALGORITHMS:
             run_single_test(base_dir, "wired", algorithm, args.duration)
             run_single_test(base_dir, "wireless", algorithm, args.duration)
-        run_fairness_test(base_dir, args.duration, profile="wired", a1="bbr", a2="cubic")
+        run_fairness_test(base_dir, args.duration, profile="wired", algorithm1="bbr", algorithm2="cubic")
     finally:
         clear_tc("sender")
         clear_tc("sender2")
