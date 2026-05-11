@@ -1,0 +1,30 @@
+services:
+  sender:
+    build: .
+    container_name: bbr_sender
+    cap_add:
+      - NET_ADMIN
+    command: ["bash", "-lc", "sleep infinity"]
+    networks:
+      - bbr_lab
+
+  sender2:
+    build: .
+    container_name: bbr_sender2
+    cap_add:
+      - NET_ADMIN
+    command: ["bash", "-lc", "sleep infinity"]
+    networks:
+      - bbr_lab
+
+  receiver:
+    build: .
+    container_name: bbr_receiver
+    command: ["bash", "-lc", "iperf3 -s"]
+    networks:
+      - bbr_lab
+
+networks:
+  bbr_lab:
+    driver: bridge
+    name: bbr_lab
