@@ -59,8 +59,8 @@ def telemetry_loop(container, csv_path, stop_event):
         writer = csv.writer(f)
         writer.writerow(["timestamp_iso", "container", "cwnd", "rtt_ms", "pacing_rate", "raw"])
         while not stop_event.is_set():
-            ts = dt.datetime.now(dt.timezone.utc).isoformat()
             result = compose_exec(container, "ss -ti dst receiver", check=False)
+            ts = dt.datetime.now(dt.timezone.utc).isoformat()
             out = result.stdout
             cwnd, rtt, pacing = parse_metrics(out)
             if result.returncode != 0:
@@ -75,7 +75,11 @@ def telemetry_loop(container, csv_path, stop_event):
 
 
 def run_iperf(container, algorithm, seconds):
-    return compose_exec(container, f"iperf3 -c receiver -t {seconds} -i 1 -J -C {algorithm}")
+    return compose_exec(container, iperf_command(algorithm, seconds))
+
+
+def iperf_command(algorithm, seconds):
+    return f"iperf3 -c receiver -t {seconds} -i 1 -J -C {algorithm}"
 
 
 def save_json(path, content):
@@ -138,13 +142,13 @@ def run_fairness_test(base_dir, duration, profile="wired", algorithm1="bbr", alg
     sender2_telemetry_thread.start()
 
     p1 = subprocess.Popen(
-        ["docker", "compose", "exec", "-T", "sender", "bash", "-lc", f"iperf3 -c receiver -t {duration} -i 1 -J -C {algorithm1}"],
+        ["docker", "compose", "exec", "-T", "sender", "bash", "-lc", iperf_command(algorithm1, duration)],
         text=True,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
     )
     p2 = subprocess.Popen(
-        ["docker", "compose", "exec", "-T", "sender2", "bash", "-lc", f"iperf3 -c receiver -t {duration} -i 1 -J -C {algorithm2}"],
+        ["docker", "compose", "exec", "-T", "sender2", "bash", "-lc", iperf_command(algorithm2, duration)],
         text=True,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
