@@ -168,7 +168,7 @@ def main():
     parser.add_argument("--down", action="store_true", help="docker compose down after tests")
     args = parser.parse_args()
 
-    run_id = dt.datetime.now(dt.timezone.utc).strftime("run_%Y%m%dT%H-%M-%SZ")
+    run_id = dt.datetime.now(dt.timezone.utc).strftime("run_%Y-%m-%dT%H-%M-%SZ")
     base_dir = Path(args.output_root) / run_id
     base_dir.mkdir(parents=True, exist_ok=True)
 
