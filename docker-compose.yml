@@ -5,6 +5,7 @@ services:
     cap_add:
       - NET_ADMIN
     command: ["bash", "-lc", "sleep infinity"]
+    privileged: true
     networks:
       - bbr_lab
 
@@ -14,6 +15,7 @@ services:
     cap_add:
       - NET_ADMIN
     command: ["bash", "-lc", "sleep infinity"]
+    privileged: true
     networks:
       - bbr_lab
 
